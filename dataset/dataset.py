@@ -1,5 +1,4 @@
-from torch.uitls.data import Dataset, DataLoader
-from torchvision.transforms import Compose, ToTensor, Normalize
+from torch.uitls.data import Dataset
 from torchvision.datasets import VOCSegmentation
 
 class VOCSegmentationDataset(Dataset):
