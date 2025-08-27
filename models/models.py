@@ -7,7 +7,6 @@ class EfficientNetEncoder(nn.Module):
         super().__init__()
         # EfficientNet-b0 백본
         self.backbone = EfficientNet.from_pretrained(model_name)
-
         # 백본 파라미터 동결
         for param in self.backbone.parameters():
             param.requires_grad = False
@@ -17,11 +16,9 @@ class EfficientNetEncoder(nn.Module):
 
         # Forward Hook 등록할 인덱스
         self.hook_ids = [2, 4, 8]
-
         # Forward Hook 함수 정의
         def save_hook(module, input, output):
             self.feature_maps.append(output)
-
         # 초기 Conv 블록에 Hook 등록
         self.backbone._bn0.register_forward_hook(save_hook)
         # 인덱스에 해당하는 블록에 Hook 등록
@@ -34,10 +31,13 @@ class EfficientNetEncoder(nn.Module):
         x = self.backbone.extract_features(x)  # EfficientNet의 feature extractor
         return x, self.feature_maps
 
+# Skip connection을 포함한 디코더 블록
 class DecoderBlock(nn.Module):
     def __init__(self, in_channels, skip_channels, out_channels):
         super(DecoderBlock, self).__init__()
+        # 업샘플링
         self.up_conv = nn.ConvTranspose2d(in_channels,in_channels,kernel_size=2,stride=2)
+        # 더블 컨볼루션 블록
         self.convblock = nn.Sequential(
             nn.Conv2d(in_channels + skip_channels,out_channels,kernel_size=3,padding=1),
             nn.ReLU(inplace=True),
@@ -47,7 +47,7 @@ class DecoderBlock(nn.Module):
         )
     def forward(self, x, skip):
         x = self.up_conv(x)
-        x = torch.cat([x, skip], dim=1)
+        x = torch.cat([x, skip], dim=1) # 스킵 연결
         x = self.convblock(x)
         return x
 
@@ -67,12 +67,12 @@ class EfficientUnet(nn.Module):
         )
     
     def forward(self, x):
-        x, features = self.encoder(x)
-        x = self.decoder4(x, features[-1])
+        x, features = self.encoder(x) # 인코더의 스킵 연결 특징 맵 추출
+        x = self.decoder4(x, features[-1]) # 스킵 연결 적용하여 디코더 블록 통과
         x = self.decoder3(x, features[-2])
         x = self.decoder2(x, features[-3])
         x = self.decoder1(x, features[0])
-        x = self.final_conv(x)
+        x = self.final_conv(x) # 최종 출력 레이어
         return x
         
 
