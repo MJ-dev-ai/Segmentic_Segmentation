@@ -19,12 +19,12 @@ class EfficientNetEncoder(nn.Module):
         # Forward Hook 함수 정의
         def save_hook(module, input, output):
             self.feature_maps.append(output)
-        # 초기 Conv 블록에 Hook 등록
-        self.backbone._bn0.register_forward_hook(save_hook)
-        # 인덱스에 해당하는 블록에 Hook 등록
-        for idx in self.hook_ids:
-            # 블록의 출력 저장
-            self.backbone._blocks[idx].register_forward_hook(save_hook)
+        # conv_stem과 지정된 블록들에 Hook 등록
+        self.backbone._conv_stem.register_forward_hook(save_hook)
+        self.backbone._blocks[2].register_forward_hook(save_hook)
+        self.backbone._blocks[4].register_forward_hook(save_hook)
+        self.backbone._blocks[8].register_forward_hook(save_hook)
+        
 
     def forward(self, x):
         self.feature_maps = []  # 초기화
@@ -76,6 +76,7 @@ class EfficientUnet(nn.Module):
         return x
         
 
-from torchsummary import summary
-model = EfficientUnet(num_classes=1, model_name='efficientnet-b0')
-print(summary(model,(3, 224, 224),batch_size=1, device='cpu'))
+model = EfficientNetEncoder()
+dummy_input = torch.randn(1, 3, 224, 224)
+output, features = model(dummy_input)
+print("Output shape:", output.shape)
