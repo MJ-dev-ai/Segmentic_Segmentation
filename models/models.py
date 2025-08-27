@@ -1,0 +1,81 @@
+from efficientnet_pytorch import EfficientNet
+import torch
+from torch import nn
+
+class EfficientNetEncoder(nn.Module):
+    def __init__(self, model_name='efficientnet-b0'):
+        super().__init__()
+        # EfficientNet-b0 백본
+        self.backbone = EfficientNet.from_pretrained(model_name)
+
+        # 백본 파라미터 동결
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+        
+        # skip connection을 위한 feature map 저장
+        self.feature_maps = []
+
+        # Forward Hook 등록할 인덱스
+        self.hook_ids = [2, 4, 8]
+
+        # Forward Hook 함수 정의
+        def save_hook(module, input, output):
+            self.feature_maps.append(output)
+
+        # 초기 Conv 블록에 Hook 등록
+        self.backbone._bn0.register_forward_hook(save_hook)
+        # 인덱스에 해당하는 블록에 Hook 등록
+        for idx in self.hook_ids:
+            # 블록의 출력 저장
+            self.backbone._blocks[idx].register_forward_hook(save_hook)
+
+    def forward(self, x):
+        self.feature_maps = []  # 초기화
+        x = self.backbone.extract_features(x)  # EfficientNet의 feature extractor
+        return x, self.feature_maps
+
+class DecoderBlock(nn.Module):
+    def __init__(self, in_channels, skip_channels, out_channels):
+        super(DecoderBlock, self).__init__()
+        self.up_conv = nn.ConvTranspose2d(in_channels,in_channels,kernel_size=2,stride=2)
+        self.convblock = nn.Sequential(
+            nn.Conv2d(in_channels + skip_channels,out_channels,kernel_size=3,padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels,out_channels,kernel_size=3,padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True)
+        )
+    def forward(self, x, skip):
+        x = self.up_conv(x)
+        x = torch.cat([x, skip], dim=1)
+        x = self.convblock(x)
+        return x
+
+class EfficientUnet(nn.Module):
+    def __init__(self, num_classes=1, model_name='efficientnet-b0'):
+        super().__init__()
+        self.encoder = EfficientNetEncoder(model_name=model_name)
+        self.decoder4 = DecoderBlock(320, 112, 256)
+        self.decoder3 = DecoderBlock(256, 40, 128)
+        self.decoder2 = DecoderBlock(128, 24, 64)
+        self.decoder1 = DecoderBlock(64, 32, 32)
+        self.final_conv = nn.Sequential(
+            nn.ConvTranspose2d(32, 32, kernel_size=2, stride=2),
+            nn.Conv2d(32,16,kernel_size=3,padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(16,num_classes,kernel_size=1)
+        )
+    
+    def forward(self, x):
+        x, features = self.encoder(x)
+        x = self.decoder4(x, features[-1])
+        x = self.decoder3(x, features[-2])
+        x = self.decoder2(x, features[-3])
+        x = self.decoder1(x, features[0])
+        x = self.final_conv(x)
+        return x
+        
+
+from torchsummary import summary
+model = EfficientUnet(num_classes=1, model_name='efficientnet-b0')
+print(summary(model,(3, 224, 224),batch_size=1, device='cpu'))
