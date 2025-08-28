@@ -74,9 +74,3 @@ class EfficientUnet(nn.Module):
         x = self.decoder1(x, features[0])
         x = self.final_conv(x) # 최종 출력 레이어
         return x
-        
-
-model = EfficientNetEncoder()
-dummy_input = torch.randn(1, 3, 224, 224)
-output, features = model(dummy_input)
-print("Output shape:", output.shape)
