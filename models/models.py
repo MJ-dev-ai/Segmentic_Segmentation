@@ -15,17 +15,15 @@ class EfficientNetEncoder(nn.Module):
         self.feature_maps = []
 
         # Forward Hook 등록할 인덱스
-        self.hook_ids = [2, 4, 8]
+        self.hook_ids = [2, 4, 8, 15]
         # Forward Hook 함수 정의
         def save_hook(module, input, output):
             self.feature_maps.append(output)
         # conv_stem과 지정된 블록들에 Hook 등록
         self.backbone._conv_stem.register_forward_hook(save_hook)
-        self.backbone._blocks[2].register_forward_hook(save_hook)
-        self.backbone._blocks[4].register_forward_hook(save_hook)
-        self.backbone._blocks[8].register_forward_hook(save_hook)
+        for idx in self.hook_ids:
+            self.backbone._blocks[idx].register_forward_hook(save_hook)
         
-
     def forward(self, x):
         self.feature_maps = []  # 초기화
         x = self.backbone.extract_features(x)  # EfficientNet의 feature extractor
@@ -68,9 +66,9 @@ class EfficientUnet(nn.Module):
     
     def forward(self, x):
         x, features = self.encoder(x) # 인코더의 스킵 연결 특징 맵 추출
-        x = self.decoder4(x, features[-1]) # 스킵 연결 적용하여 디코더 블록 통과
-        x = self.decoder3(x, features[-2])
-        x = self.decoder2(x, features[-3])
+        x = self.decoder4(features[-1], features[-2]) # 스킵 연결 적용하여 디코더 블록 통과
+        x = self.decoder3(x, features[-3])
+        x = self.decoder2(x, features[-4])
         x = self.decoder1(x, features[0])
         x = self.final_conv(x) # 최종 출력 레이어
         return x
