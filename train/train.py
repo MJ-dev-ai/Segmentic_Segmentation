@@ -26,5 +26,3 @@ def train(model, dataloader, loss_fn, optimizer, device, flags):
     
     torch.save(model.state_dict(), flags.save_path)
     return total_loss
-
-            
