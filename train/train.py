@@ -4,7 +4,7 @@ from tqdm.auto import tqdm
 def train(model, dataloader, loss_fn, optimizer, device, flags):
     model.train()
     total_loss = []
-    for epoch in range(flags.epochs):
+    for epoch in range(flags['epochs']):
         epoch_loss = 0.0
         bar = tqdm(dataloader)
         for images, masks in bar:
@@ -14,7 +14,7 @@ def train(model, dataloader, loss_fn, optimizer, device, flags):
 
             optimizer.zero_grad()
             outputs = model(images)
-            loss = loss_fn(outputs, masks)
+            loss = loss_fn(outputs, masks.squeeze(1).long())
             loss.backward()
             optimizer.step()
             epoch_loss += loss.cpu().item()
@@ -22,7 +22,7 @@ def train(model, dataloader, loss_fn, optimizer, device, flags):
         
         epoch_loss /= len(dataloader)
         total_loss.append(epoch_loss)
-        print(f"Epoch {epoch+1}/{flags.epochs}, Loss: {epoch_loss:.4f}")
+        print(f"Epoch {epoch+1}/{flags['epochs']}, Loss: {epoch_loss:.4f}")
     
-    torch.save(model.state_dict(), flags.save_path)
+    torch.save(model.state_dict(), flags['save_path'])
     return total_loss
