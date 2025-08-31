@@ -9,7 +9,7 @@ class EfficientNetEncoder(nn.Module):
         self.backbone = EfficientNet.from_pretrained(model_name)
         # 백본 파라미터 동결
         for param in self.backbone.parameters():
-            param.requires_grad = False
+            param.requires_grad = True
         
         # skip connection을 위한 feature map 저장
         self.feature_maps = []
