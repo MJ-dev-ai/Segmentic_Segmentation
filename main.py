@@ -1,9 +1,9 @@
 from config import flags
-from train.train import train
-from models.models import EfficientUnet
-from dataset.dataset import VOCSegmentationDataset
+from train import train
+from models import EfficientUnet
+from dataset import VOCSegmentationDataset
 from torch.utils.data import DataLoader
-from utils.utils import overlay_mask_on_image
+from utils import overlay_mask_on_image
 import numpy as np
 import torch
 from torch import optim, nn
